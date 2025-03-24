@@ -1,10 +1,10 @@
 use anyhow::Result;
-use dialoguer::{theme::ColorfulTheme, Select, Input, Confirm};
+use dialoguer::{theme::ColorfulTheme, Select, Confirm};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::{
     collections::HashMap,
     fs,
-    io::{self, Read},
+    io::{Read},
     path::{Path, PathBuf},
     sync::Arc,
 };
