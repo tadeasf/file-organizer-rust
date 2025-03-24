@@ -1,0 +1,16 @@
+[package]
+name = "file-organizer-rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.1", features = ["derive"] }
+tokio = { version = "1.36.0", features = ["full"] }
+image = "0.24.9"
+indicatif = "0.17.8"
+console = "0.15.8"
+dialoguer = "0.11.0"
+anyhow = "1.0.80"
+walkdir = "2.4.0"
+webp = "0.2.6"
+rayon = "1.8.1"
