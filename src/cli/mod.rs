@@ -5,6 +5,7 @@ use dialoguer::{theme::ColorfulTheme, Select};
 use crate::modules::{
     directory_flattener::DirectoryFlattener,
     image_optimizer::ImageOptimizer,
+    file_deduplicator::FileDeduplicator,
 };
 
 #[derive(Parser)]
@@ -21,6 +22,10 @@ enum Commands {
         recursive: bool,
     },
     DirectoryFlatten,
+    FileDedup {
+        #[arg(short, long)]
+        recursive: bool,
+    },
 }
 
 impl Cli {
@@ -38,8 +43,12 @@ impl Cli {
                 let flattener = DirectoryFlattener::new();
                 flattener.run().await?;
             }
+            Some(Commands::FileDedup { recursive }) => {
+                let deduplicator = FileDeduplicator::new(*recursive);
+                deduplicator.run().await?;
+            }
             None => {
-                let options = vec!["Image Optimizer", "Directory Flattener"];
+                let options = vec!["Image Optimizer", "Directory Flattener", "File Deduplicator"];
                 let selection = Select::with_theme(&ColorfulTheme::default())
                     .with_prompt("Select operation")
                     .items(&options)
@@ -59,6 +68,15 @@ impl Cli {
                     1 => {
                         let flattener = DirectoryFlattener::new();
                         flattener.run().await?;
+                    }
+                    2 => {
+                        let recursive = Select::with_theme(&ColorfulTheme::default())
+                            .with_prompt("Run recursively?")
+                            .items(&["No", "Yes"])
+                            .default(0)
+                            .interact()?;
+                        let deduplicator = FileDeduplicator::new(recursive == 1);
+                        deduplicator.run().await?;
                     }
                     _ => unreachable!(),
                 }
