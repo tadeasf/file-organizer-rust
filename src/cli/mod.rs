@@ -6,6 +6,7 @@ use crate::modules::{
     directory_flattener::DirectoryFlattener,
     image_optimizer::ImageOptimizer,
     file_deduplicator::FileDeduplicator,
+    file_categorizer::FileCategorizer,
 };
 
 #[derive(Parser)]
@@ -23,6 +24,10 @@ enum Commands {
     },
     DirectoryFlatten,
     FileDedup {
+        #[arg(short, long)]
+        recursive: bool,
+    },
+    FileCateg {
         #[arg(short, long)]
         recursive: bool,
     },
@@ -47,8 +52,12 @@ impl Cli {
                 let deduplicator = FileDeduplicator::new(*recursive);
                 deduplicator.run().await?;
             }
+            Some(Commands::FileCateg { recursive }) => {
+                let categorizer = FileCategorizer::new(*recursive);
+                categorizer.run().await?;
+            }
             None => {
-                let options = vec!["Image Optimizer", "Directory Flattener", "File Deduplicator"];
+                let options = vec!["Image Optimizer", "Directory Flattener", "File Deduplicator", "File Categorizer"];
                 let selection = Select::with_theme(&ColorfulTheme::default())
                     .with_prompt("Select operation")
                     .items(&options)
@@ -77,6 +86,15 @@ impl Cli {
                             .interact()?;
                         let deduplicator = FileDeduplicator::new(recursive == 1);
                         deduplicator.run().await?;
+                    }
+                    3 => {
+                        let recursive = Select::with_theme(&ColorfulTheme::default())
+                            .with_prompt("Run recursively?")
+                            .items(&["No", "Yes"])
+                            .default(0)
+                            .interact()?;
+                        let categorizer = FileCategorizer::new(recursive == 1);
+                        categorizer.run().await?;
                     }
                     _ => unreachable!(),
                 }
