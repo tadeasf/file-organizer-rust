@@ -21,6 +21,27 @@ Currently implemented modules:
   - Skip duplicates (keeps first occurrence)
 - Interactive progress display
 
+### File Deduplicator
+- Finds duplicate files using various hash methods
+- Supports multiple duplicate handling strategies
+- Generates detailed reports
+- Supports recursive operation
+
+### Archive Manager
+- Supports multiple archive formats (ZIP, TAR, TAR.GZ, TAR.ZST)
+- Multiple operation modes:
+  - Create: Create new archives with customizable compression
+  - Extract: Extract archives to specified locations
+  - Update: Add or update files in existing archives
+  - Split: Split large archives into smaller parts (ZIP only)
+- Compression options:
+  - None: No compression
+  - Fast: Quick compression
+  - Balanced: Default compression
+  - Best: Maximum compression
+- Progress tracking and user feedback
+- Supports recursive operation
+
 ## Usage
 
 Run the tool without arguments for an interactive menu, or use command-line arguments:
@@ -32,6 +53,8 @@ Run the tool without arguments for an interactive menu, or use command-line argu
 # Direct command usage
 ./file-organizer-rust image-optimize --recursive  # Optimize images recursively
 ./file-organizer-rust directory-flatten           # Flatten a directory
+./file-organizer-rust deduplicate --recursive       # Find and handle duplicates
+./file-organizer-rust archive --recursive           # Manage archives
 ```
 
 ## Project Structure
