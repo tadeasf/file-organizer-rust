@@ -21,11 +21,11 @@ enum DuplicateHandling {
 
 #[async_trait]
 impl FileOrganizer for DirectoryFlattener {
-    fn new(recursive: bool) -> Self {
+    fn new(_recursive: bool) -> Self {
         Self {
-            recursive: true, // Always recursive for flattening
+            recursive: true,  // Directory flattener is always recursive
             input_dir: None,
-            handle_duplicates: None,
+            handle_duplicates: Some(DuplicateHandling::Rename),
         }
     }
 

@@ -15,7 +15,7 @@ use crate::modules::{
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -39,25 +39,74 @@ impl Cli {
 
     pub async fn run(&self) -> Result<()> {
         match &self.command {
-            Commands::Categorize { recursive } => {
-                let organizer = FileCategorizer::new(*recursive);
-                organizer.run().await?;
+            Some(cmd) => {
+                match cmd {
+                    Commands::Categorize { recursive } => {
+                        let organizer = FileCategorizer::new(*recursive);
+                        organizer.run().await?;
+                    }
+                    Commands::DirectoryFlatten { recursive } => {
+                        let organizer = DirectoryFlattener::new(*recursive);
+                        organizer.run().await?;
+                    }
+                    Commands::ImageOptimize { recursive } => {
+                        let organizer = ImageOptimizer::new(*recursive);
+                        organizer.run().await?;
+                    }
+                    Commands::Deduplicate { recursive } => {
+                        let organizer = FileDeduplicator::new(*recursive);
+                        organizer.run().await?;
+                    }
+                    Commands::Archive { recursive } => {
+                        let organizer = ArchiveManager::new(*recursive);
+                        organizer.run().await?;
+                    }
+                }
             }
-            Commands::DirectoryFlatten { recursive } => {
-                let organizer = DirectoryFlattener::new(*recursive);
-                organizer.run().await?;
-            }
-            Commands::ImageOptimize { recursive } => {
-                let organizer = ImageOptimizer::new(*recursive);
-                organizer.run().await?;
-            }
-            Commands::Deduplicate { recursive } => {
-                let organizer = FileDeduplicator::new(*recursive);
-                organizer.run().await?;
-            }
-            Commands::Archive { recursive } => {
-                let organizer = ArchiveManager::new(*recursive);
-                organizer.run().await?;
+            None => {
+                // Interactive mode
+                let options = vec![
+                    "Categorize files",
+                    "Flatten directory",
+                    "Optimize images",
+                    "Find duplicates",
+                    "Manage archives",
+                ];
+                
+                let selection = Select::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Select operation")
+                    .items(&options)
+                    .default(0)
+                    .interact()?;
+
+                let recursive = dialoguer::Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Process subdirectories recursively?")
+                    .default(true)
+                    .interact()?;
+
+                match selection {
+                    0 => {
+                        let organizer = FileCategorizer::new(recursive);
+                        organizer.run().await?;
+                    }
+                    1 => {
+                        let organizer = DirectoryFlattener::new(recursive);
+                        organizer.run().await?;
+                    }
+                    2 => {
+                        let organizer = ImageOptimizer::new(recursive);
+                        organizer.run().await?;
+                    }
+                    3 => {
+                        let organizer = FileDeduplicator::new(recursive);
+                        organizer.run().await?;
+                    }
+                    4 => {
+                        let organizer = ArchiveManager::new(recursive);
+                        organizer.run().await?;
+                    }
+                    _ => unreachable!(),
+                }
             }
         }
         Ok(())

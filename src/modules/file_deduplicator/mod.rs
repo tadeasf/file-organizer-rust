@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use dialoguer::{theme::ColorfulTheme, Select, MultiSelect};
+use dialoguer::{theme::ColorfulTheme, Select};
 use sha2::{Sha256, Digest};
 use std::{collections::HashMap, fs, path::PathBuf, io::Read};
 use walkdir::WalkDir;

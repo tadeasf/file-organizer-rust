@@ -171,15 +171,11 @@ impl FileOrganizer for ArchiveManager {
         self.input_dir = Some(dir);
     }
 
-    fn process_file(&self, file: &PathBuf) -> Result<()> {
-        // Individual file processing is handled in specific archive operations
+    fn process_file(&self, _file: &PathBuf) -> Result<()> {
         Ok(())
     }
 
-    fn create_directories(&self, base_dir: &PathBuf) -> Result<()> {
-        if let Some(output_dir) = &self.output_dir {
-            fs::create_dir_all(output_dir)?;
-        }
+    fn create_directories(&self, _base_dir: &PathBuf) -> Result<()> {
         Ok(())
     }
 }
@@ -267,8 +263,9 @@ impl ArchiveManager {
             CompressionLevel::Balanced => 10,
             CompressionLevel::Best => 19,
         };
-        let mut encoder = zstd::Encoder::new(file, level)?;
-        let mut builder = tar::Builder::new(&mut encoder);
+        
+        let encoder = zstd::Encoder::new(file, level)?;
+        let mut builder = tar::Builder::new(encoder);
 
         let input_dir = self.input_dir.as_ref().unwrap();
         let base_path = input_dir.as_path();
@@ -281,7 +278,7 @@ impl ArchiveManager {
             }
         }
 
-        builder.finish()?;
+        let encoder = builder.into_inner()?;
         encoder.finish()?;
         Ok(())
     }
@@ -339,19 +336,16 @@ impl ArchiveManager {
         Ok(())
     }
 
-    fn update_archive(&self) -> Result<()> {
-        // For simplicity, we'll extract, update, and recreate the archive
+    fn update_archive(&mut self) -> Result<()> {
         let temp_dir = self.output_dir.as_ref().unwrap().join("temp_extract");
         fs::create_dir_all(&temp_dir)?;
 
-        // Extract existing archive
         let mut temp_manager = Self::new(true);
         temp_manager.input_dir = self.input_dir.clone();
         temp_manager.output_dir = Some(temp_dir.clone());
         temp_manager.archive_type = self.archive_type;
         temp_manager.extract_archive()?;
 
-        // Update files
         let input_dir = self.input_dir.as_ref().unwrap();
         for entry in WalkDir::new(input_dir).into_iter().filter_map(|e| e.ok()) {
             let path = entry.path();
@@ -365,11 +359,9 @@ impl ArchiveManager {
             }
         }
 
-        // Recreate archive
         self.input_dir = Some(temp_dir.clone());
         self.create_archive()?;
 
-        // Cleanup
         fs::remove_dir_all(temp_dir)?;
         Ok(())
     }
@@ -391,7 +383,6 @@ impl ArchiveManager {
 
             let file_size = fs::metadata(path)?.len();
             if current_size + file_size > split_size || current_archive.is_none() {
-                // Create new archive part
                 let archive_name = format!(
                     "{}.part{}.{}",
                     input_dir.file_name().unwrap().to_string_lossy(),
@@ -426,7 +417,7 @@ impl ArchiveManager {
             }
         }
 
-        if let Some(archive) = current_archive {
+        if let Some(mut archive) = current_archive {
             archive.finish()?;
         }
 

@@ -1,7 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::NaiveDateTime;
-use dialoguer::{theme::ColorfulTheme, Select, MultiSelect};
+use dialoguer::{theme::ColorfulTheme, MultiSelect};
 use std::{collections::HashMap, fs, path::PathBuf};
 use walkdir::WalkDir;
 
@@ -144,7 +143,7 @@ impl FileCategorizer {
         Ok(rules)
     }
 
-    fn categorize_files(&self, dir: &PathBuf, rules: &[CategoryRule]) -> Result<()> {
+    fn categorize_files(&self, dir: &PathBuf, _rules: &[CategoryRule]) -> Result<()> {
         let walker = if self.recursive {
             WalkDir::new(dir)
         } else {
