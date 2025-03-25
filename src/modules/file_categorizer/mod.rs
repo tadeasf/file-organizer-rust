@@ -1,13 +1,17 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use dialoguer::{theme::ColorfulTheme, Select, MultiSelect};
 use std::{collections::HashMap, fs, path::PathBuf};
 use walkdir::WalkDir;
 
 use crate::utils::{create_spinner, get_directory_from_user};
+use crate::modules::base::FileOrganizer;
 
 pub struct FileCategorizer {
     recursive: bool,
+    input_dir: Option<PathBuf>,
+    rules: Vec<CategoryRule>,
 }
 
 #[derive(Debug, Clone)]
@@ -17,18 +21,23 @@ enum CategoryRule {
     Custom(HashMap<String, Vec<String>>),
 }
 
-impl FileCategorizer {
-    pub fn new(recursive: bool) -> Self {
-        Self { recursive }
+#[async_trait]
+impl FileOrganizer for FileCategorizer {
+    fn new(recursive: bool) -> Self {
+        Self {
+            recursive,
+            input_dir: None,
+            rules: Vec::new(),
+        }
     }
 
-    pub async fn run(&self) -> Result<()> {
+    async fn run(&self) -> Result<()> {
         let input_dir = get_directory_from_user("Enter directory to categorize")?;
         
-        let rules = vec!["File Type", "Date Based", "Custom Rules"];
+        let rule_options = vec!["File Type", "Date Based", "Custom Rules"];
         let selected_rules = MultiSelect::with_theme(&ColorfulTheme::default())
             .with_prompt("Select categorization rules")
-            .items(&rules)
+            .items(&rule_options)
             .defaults(&[true, false, false])
             .interact()?;
 
@@ -36,26 +45,72 @@ impl FileCategorizer {
             anyhow::bail!("No categorization rules selected");
         }
 
-        let mut category_rules = Vec::new();
+        let mut rules = Vec::new();
         for &idx in selected_rules.iter() {
             match idx {
-                0 => category_rules.push(CategoryRule::FileType),
-                1 => category_rules.push(CategoryRule::DateBased),
+                0 => rules.push(CategoryRule::FileType),
+                1 => rules.push(CategoryRule::DateBased),
                 2 => {
                     let custom_rules = self.configure_custom_rules()?;
-                    category_rules.push(CategoryRule::Custom(custom_rules));
+                    rules.push(CategoryRule::Custom(custom_rules));
                 }
                 _ => unreachable!(),
             }
         }
 
         let spinner = create_spinner("Categorizing files...");
-        self.categorize_files(&input_dir, &category_rules)?;
+        self.categorize_files(&input_dir, &rules)?;
         spinner.finish_with_message("File categorization completed!");
 
         Ok(())
     }
 
+    fn is_recursive(&self) -> bool {
+        self.recursive
+    }
+
+    fn get_input_dir(&self) -> Option<&PathBuf> {
+        self.input_dir.as_ref()
+    }
+
+    fn set_input_dir(&mut self, dir: PathBuf) {
+        self.input_dir = Some(dir);
+    }
+
+    fn process_file(&self, file: &PathBuf) -> Result<()> {
+        if let Some(input_dir) = &self.input_dir {
+            for rule in &self.rules {
+                match rule {
+                    CategoryRule::FileType => self.categorize_by_type(file, input_dir)?,
+                    CategoryRule::DateBased => self.categorize_by_date(file, input_dir)?,
+                    CategoryRule::Custom(rules) => self.categorize_by_custom_rules(file, input_dir, rules)?,
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn create_directories(&self, base_dir: &PathBuf) -> Result<()> {
+        for rule in &self.rules {
+            match rule {
+                CategoryRule::FileType => {
+                    fs::create_dir_all(base_dir.join("by_type"))?;
+                }
+                CategoryRule::DateBased => {
+                    fs::create_dir_all(base_dir.join("by_date"))?;
+                }
+                CategoryRule::Custom(rules) => {
+                    for category in rules.keys() {
+                        fs::create_dir_all(base_dir.join("custom").join(category))?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl FileCategorizer {
     fn configure_custom_rules(&self) -> Result<HashMap<String, Vec<String>>> {
         let mut rules = HashMap::new();
         println!("Configure custom rules (category:extension, e.g., 'Documents:pdf,doc,docx')");
@@ -102,13 +157,7 @@ impl FileCategorizer {
             }
 
             let path = entry.path().to_path_buf();
-            for rule in rules {
-                match rule {
-                    CategoryRule::FileType => self.categorize_by_type(&path, dir)?,
-                    CategoryRule::DateBased => self.categorize_by_date(&path, dir)?,
-                    CategoryRule::Custom(rules) => self.categorize_by_custom_rules(&path, dir, rules)?,
-                }
-            }
+            self.process_file(&path)?;
         }
 
         Ok(())

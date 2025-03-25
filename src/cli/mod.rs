@@ -22,7 +22,10 @@ enum Commands {
         #[arg(short, long)]
         recursive: bool,
     },
-    DirectoryFlatten,
+    DirectoryFlatten {
+        #[arg(short, long)]
+        recursive: bool,
+    },
     FileDedup {
         #[arg(short, long)]
         recursive: bool,
@@ -44,8 +47,8 @@ impl Cli {
                 let optimizer = ImageOptimizer::new(*recursive);
                 optimizer.run().await?;
             }
-            Some(Commands::DirectoryFlatten) => {
-                let flattener = DirectoryFlattener::new();
+            Some(Commands::DirectoryFlatten { recursive }) => {
+                let flattener = DirectoryFlattener::new(*recursive);
                 flattener.run().await?;
             }
             Some(Commands::FileDedup { recursive }) => {
@@ -75,7 +78,12 @@ impl Cli {
                         optimizer.run().await?;
                     }
                     1 => {
-                        let flattener = DirectoryFlattener::new();
+                        let recursive = Select::with_theme(&ColorfulTheme::default())
+                            .with_prompt("Run recursively?")
+                            .items(&["No", "Yes"])
+                            .default(0)
+                            .interact()?;
+                        let flattener = DirectoryFlattener::new(recursive == 1);
                         flattener.run().await?;
                     }
                     2 => {
