@@ -1,12 +1,10 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use dialoguer::{theme::ColorfulTheme, Select, MultiSelect, Input};
+use dialoguer::{theme::ColorfulTheme, Select, Input};
 use flate2::Compression;
-use humansize::{format_size, BINARY};
 use std::{
-    collections::HashMap,
     fs::{self, File},
-    io::{self, Read, Write, BufReader, BufWriter},
+    io::{self, Read, Write},
     path::PathBuf,
 };
 use walkdir::WalkDir;
@@ -171,17 +169,48 @@ impl FileOrganizer for ArchiveManager {
         self.input_dir = Some(dir);
     }
 
-    fn process_file(&self, _file: &PathBuf) -> Result<()> {
+    fn process_file(&self, file: &PathBuf) -> Result<()> {
+        match self.operation_mode.unwrap() {
+            OperationMode::Create | OperationMode::Update => {
+                let input_dir = self.input_dir.as_ref().unwrap();
+                let relative_path = file.strip_prefix(input_dir)?;
+                let target_path = self.output_dir.as_ref().unwrap().join(relative_path);
+                if let Some(parent) = target_path.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                fs::copy(file, target_path)?;
+            }
+            _ => {}
+        }
         Ok(())
     }
 
-    fn create_directories(&self, _base_dir: &PathBuf) -> Result<()> {
+    fn create_directories(&self, base_dir: &PathBuf) -> Result<()> {
+        match self.operation_mode.unwrap() {
+            OperationMode::Create | OperationMode::Update => {
+                if let Some(output_dir) = &self.output_dir {
+                    fs::create_dir_all(output_dir.join(base_dir))?;
+                }
+            }
+            OperationMode::Extract => {
+                fs::create_dir_all(base_dir)?;
+            }
+            OperationMode::Split => {
+                if let Some(output_dir) = &self.output_dir {
+                    fs::create_dir_all(output_dir)?;
+                }
+            }
+        }
         Ok(())
     }
 }
 
 impl ArchiveManager {
     fn create_archive(&self) -> Result<()> {
+        if !matches!(self.operation_mode.unwrap(), OperationMode::Create) {
+            anyhow::bail!("Invalid operation mode for create_archive");
+        }
+
         let input_dir = self.input_dir.as_ref().unwrap();
         let output_dir = self.output_dir.as_ref().unwrap();
         let archive_name = format!(
@@ -284,6 +313,10 @@ impl ArchiveManager {
     }
 
     fn extract_archive(&self) -> Result<()> {
+        if !matches!(self.operation_mode.unwrap(), OperationMode::Extract) {
+            anyhow::bail!("Invalid operation mode for extract_archive");
+        }
+
         let input_dir = self.input_dir.as_ref().unwrap();
         let output_dir = self.output_dir.as_ref().unwrap();
 
@@ -337,6 +370,10 @@ impl ArchiveManager {
     }
 
     fn update_archive(&mut self) -> Result<()> {
+        if !matches!(self.operation_mode.unwrap(), OperationMode::Update) {
+            anyhow::bail!("Invalid operation mode for update_archive");
+        }
+
         let temp_dir = self.output_dir.as_ref().unwrap().join("temp_extract");
         fs::create_dir_all(&temp_dir)?;
 
@@ -367,6 +404,10 @@ impl ArchiveManager {
     }
 
     fn split_archive(&self) -> Result<()> {
+        if !matches!(self.operation_mode.unwrap(), OperationMode::Split) {
+            anyhow::bail!("Invalid operation mode for split_archive");
+        }
+
         let input_dir = self.input_dir.as_ref().unwrap();
         let output_dir = self.output_dir.as_ref().unwrap();
         let split_size = self.split_size.unwrap();
