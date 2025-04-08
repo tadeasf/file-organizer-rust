@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.1", features = ["derive"] }
-tokio = { version = "1.36.0", features = ["full"] }
+tokio = { version = "1.44.2", features = ["full"] }
 image = "0.24.9"
 indicatif = "0.17.8"
 console = "0.15.8"
